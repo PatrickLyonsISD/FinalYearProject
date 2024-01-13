@@ -8,6 +8,7 @@ import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class SignUpViewModel : ViewModel() {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
@@ -22,28 +23,27 @@ class SignUpViewModel : ViewModel() {
     private val _signUpMessage = MutableStateFlow("")
     val signUpMessage: StateFlow<String> = _signUpMessage
 
-    fun signUp(email: String, password: String, name: String, course: String, uniqueIdentifier: String) {
+    fun signUp(email: String, password: String, name: String, course: String, uniqueIdentifier: String, deviceName: String) {
         viewModelScope.launch {
             try {
-                auth.createUserWithEmailAndPassword(email, password)
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            // Construct a user object or a map to hold the user data
-                            val userData = hashMapOf(
-                                "name" to name,
-                                "course" to course
-                                // add more attributes here if needed
-                            )
+                auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val userData = hashMapOf(
+                            "email" to email,
+                            "name" to name,
+                            "course" to course,
+                            "deviceName" to deviceName
+                        )
 
-                            db.child(uniqueIdentifier).setValue(userData)
-                                .addOnCompleteListener { dbTask ->
-                                    handleDatabaseTaskCompletion(dbTask)
-                                }
-                        } else {
-                            _signUpStatus.value = false
-                            _signUpMessage.value = "Registration failed: ${task.exception?.message}"
+                        // Store user data under the uniqueIdentifier in Firebase
+                        db.child(uniqueIdentifier).setValue(userData).addOnCompleteListener { dbTask ->
+                            handleDatabaseTaskCompletion(dbTask)
                         }
+                    } else {
+                        _signUpStatus.value = false
+                        _signUpMessage.value = "Registration failed: ${task.exception?.message}"
                     }
+                }
             } catch (e: Exception) {
                 _signUpStatus.value = false
                 _signUpMessage.value = "Error: ${e.message}"
@@ -60,9 +60,4 @@ class SignUpViewModel : ViewModel() {
             _signUpMessage.value = "Failed to save data to database: ${dbTask.exception?.message}"
         }
     }
-
-    fun handleSelectedBluetoothDevice(macAddress: String) {
-        // Logic to handle the MAC address as part of the sign-up process
-    }
 }
-
